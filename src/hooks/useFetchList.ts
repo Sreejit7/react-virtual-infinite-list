@@ -18,25 +18,46 @@ interface BookData {
   docs: Book[];
 }
 
+interface Params {
+  q: string;
+  page: number;
+  limit: number;
+}
+
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-const getPaginatedData = async (url: string) => {
-  const { data } = await openLibAxiosInstance.get<BookData>(url);
+const getPaginatedData = async ([url, params]: [string, Params]) => {
+  const { data } = await openLibAxiosInstance.get<BookData>(url, { params });
 
   return data;
 };
 
 const getKey = (pageIndex: number) => {
-  return `search.json?q=the+lord+of+the+rings&page=${pageIndex + 1}&limit=50`;
+  const params: Params = {
+    q: "the lord of the rings",
+    page: pageIndex + 1,
+    limit: 50,
+  };
+  return [`search.json`, params];
 };
 
-export const useFetchPaginatedList = () => {
-  const result = useSWRInfinite(getKey, getPaginatedData, {
-    onSuccess(data, key, config) {
-      console.log(data);
+export const useFetchPaginatedList = (pageSize: number, query: string) => {
+  const result = useSWRInfinite(
+    (pageIndex: number) => {
+      return [
+        `search.json`,
+        { q: query, page: pageIndex + 1, limit: pageSize },
+      ];
     },
-    revalidateFirstPage: false,
-  });
+    getPaginatedData,
+    {
+      onSuccess(data, key, config) {
+        console.log(data);
+        console.log(key);
+      },
+      revalidateFirstPage: false,
+    }
+  );
 
   return {
     ...result,
