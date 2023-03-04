@@ -1,4 +1,4 @@
-import { MutableRefObject, useCallback, useRef } from "react";
+import { useCallback } from "react";
 import {
   ListChildComponentProps,
   VariableSizeList as List,
@@ -7,6 +7,10 @@ import AutoSizer from "react-virtualized-auto-sizer";
 
 import "./App.css";
 import { useFetchPaginatedList } from "./hooks/useFetchList";
+import { useInfiniteScroll } from "./hooks/useInfiniteScroll";
+
+const PAGE_SIZE = 50;
+const OFFSET_FOR_NEXT_FETCH = 30;
 
 function App() {
   const {
@@ -17,48 +21,27 @@ function App() {
     size,
     isValidating,
     mergedData: allBooks,
-  } = useFetchPaginatedList();
+  } = useFetchPaginatedList(PAGE_SIZE, "the lord of the rings");
 
-  const isReachingEnd = data ? data[data.length - 1].docs.length < 50 : null;
+  const isReachingEnd = data
+    ? data[data.length - 1].docs.length < PAGE_SIZE
+    : null;
 
-  const offSetToTriggerFetchingNextPageData = 30;
-
-  // Setting up the observer
-  const observer = useRef() as MutableRefObject<IntersectionObserver>;
-
-  const targetResultRef = useCallback(
-    (node: HTMLLIElement) => {
-      if (isLoading || isValidating || isReachingEnd) {
-        return;
-      }
-      // Disconnect current observer, as we want to set-up a new one
-      if (observer.current) {
-        observer.current.disconnect();
-      }
-
-      observer.current = new IntersectionObserver((entries) => {
-        // Increase page number if the last result is visible & more data is available
-        if (entries[0].isIntersecting) {
-          setSize(size + 1);
-        }
-      });
-
-      if (node) {
-        observer.current?.observe(node);
-      }
-    },
-    [isLoading, isValidating]
+  const { offsetTargetElementRef } = useInfiniteScroll(
+    () => setSize(size + 1),
+    isLoading || isValidating || (isReachingEnd !== null && isReachingEnd),
+    isValidating,
+    isLoading
   );
 
   const Book = useCallback(
     ({ index, style }: ListChildComponentProps) => {
       const listOfBooks = allBooks || [];
       const doc = listOfBooks[index];
-      return index ===
-        listOfBooks.length - offSetToTriggerFetchingNextPageData ? (
+      return index === listOfBooks.length - OFFSET_FOR_NEXT_FETCH ? (
         <li
           key={doc.key}
-          ref={targetResultRef}
+          ref={offsetTargetElementRef}
           style={style}
           className="book-item"
         >
